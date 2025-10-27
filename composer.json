@@ -25,7 +25,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "Uraymr\\GoogleDrive\\GoogleDriveServiceProvider"
+        "Uraymr\\GoogleDrive\\Providers\\GoogleDriveServiceProvider"
       ]
     }
   },
