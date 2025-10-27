@@ -1,0 +1,24 @@
+{
+  "name": "uraymr/laravel-googledrive-ext",
+  "description": "Laravel 12 Google Drive storage extension using Flysystem v3 adapter.",
+  "type": "library",
+  "require": {
+    "php": "^8.0",
+    "laravel/framework": "^12.0",
+    "league/flysystem": "^3.0",
+    "google/apiclient": "^2.0"
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Uraymr\\LaravelGoogledriveExt\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "UrayMR",
+      "email": "umrajsyafiq@gmail.com"
+    }
+  ],
+  "minimum-stability": "dev"
+}
