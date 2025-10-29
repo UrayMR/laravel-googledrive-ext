@@ -22,7 +22,7 @@ These are defined in `composer.json` for this package.
 
 ## Installation
 
-Install the package via Composer (package name from this repository):
+Install the package via Composer:
 
 ```bash
 composer require uraymr/laravel-googledrive-ext
@@ -46,14 +46,8 @@ Example disk configuration (Service Account):
 ```php
 'google' => [
 	'driver' => 'google',
-	// Path to the service account JSON file
 	'service_account' => env('GOOGLE_SERVICE_ACCOUNT_JSON'),
-	// Optional: folder ID to use as root (default: 'root')
-	'root' => env('GOOGLE_DRIVE_ROOT', 'root'),
-	// Optional default visibility
-	'visibility' => 'private',
-	// Optional application name
-	'app_name' => env('GOOGLE_APP_NAME', null),
+	'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID', 'root'),
 ],
 ```
 
@@ -65,13 +59,7 @@ Example disk configuration (OAuth client + refresh token):
 	'client_id' => env('GOOGLE_CLIENT_ID'),
 	'client_secret' => env('GOOGLE_CLIENT_SECRET'),
 	'refresh_token' => env('GOOGLE_REFRESH_TOKEN'),
-	// Optionally: an already issued access token (will be refreshed when expired)
-	'access_token' => env('GOOGLE_ACCESS_TOKEN', null),
-	'created' => env('GOOGLE_TOKEN_CREATED', null),
-	'expires_in' => env('GOOGLE_TOKEN_EXPIRES_IN', 3600),
-	'root' => env('GOOGLE_DRIVE_ROOT', 'root'),
-	'visibility' => 'private',
-	'app_name' => env('GOOGLE_APP_NAME', null),
+	'folder_id' => env('GOOGLE_DRIVE_FOLDER_ID', 'root'),
 ],
 ```
 
@@ -139,6 +127,7 @@ Gdrive::download('invoices/2025-10.pdf', storage_path('app/invoices/2025-10.pdf'
 
 Available `Gdrive` methods (static):
 
+- healthCheck(disk = null)
 - put(path, contents, disk = null)
 - putStream(path, stream, disk = null)
 - get(path, disk = null)

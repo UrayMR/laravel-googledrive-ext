@@ -33,6 +33,17 @@ class Gdrive
     return $diskInstance;
   }
 
+  public static function healthCheck(?string $disk = null): bool
+  {
+    $diskInstance = self::disk($disk);
+    try {
+      $diskInstance->listContents('/', false)->toArray();
+      return true;
+    } catch (\Exception $e) {
+      return false;
+    }
+  }
+
   /**
    * Upload a file to Google Drive.
    *

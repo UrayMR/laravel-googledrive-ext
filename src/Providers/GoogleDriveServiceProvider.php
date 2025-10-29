@@ -33,9 +33,8 @@ class GoogleDriveServiceProvider extends ServiceProvider
       $client = $this->createGoogleClient($config);
       $service = new GoogleDriveService($client);
 
-      // Ensure we have a valid root folder id (default to 'root')
-      $rawRoot = $config['root'] ?? 'root';
-      $rootFolderId = ($rawRoot === null || $rawRoot === '' || $rawRoot === '/') ? 'root' : $rawRoot;
+      $folderId = $config['folder_id'] ?? 'root';
+      $rootFolderId = ($folderId === null || $folderId === '' || $folderId === '/') ? 'root' : $folderId;
 
       $adapter = new GoogleDriveAdapter($service, $rootFolderId);
 
@@ -115,12 +114,13 @@ class GoogleDriveServiceProvider extends ServiceProvider
     $client->setAccessType('offline');
     $client->setApprovalPrompt('force');
 
-    $client->setAccessToken([
-      'access_token' => $config['access_token'] ?? null,
-      'refresh_token' => $config['refresh_token'],
-      'created' => $config['created'] ?? time(),
-      'expires_in' => $config['expires_in'] ?? 3600,
-    ]);
+    $accessToken = $client->fetchAccessTokenWithRefreshToken($config['refresh_token']);
+
+    if (isset($accessToken['error'])) {
+      throw new \Exception('Failed to fetch access token: ' . $accessToken['error_description']);
+    }
+
+    $client->setAccessToken($accessToken);
 
     if ($client->isAccessTokenExpired()) {
       $client->fetchAccessTokenWithRefreshToken($config['refresh_token']);
