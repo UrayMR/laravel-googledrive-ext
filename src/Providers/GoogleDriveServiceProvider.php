@@ -34,7 +34,8 @@ class GoogleDriveServiceProvider extends ServiceProvider
       $service = new GoogleDriveService($client);
 
       // Ensure we have a valid root folder id (default to 'root')
-      $rootFolderId = $config['root'] ?? 'root';
+      $rawRoot = $config['root'] ?? 'root';
+      $rootFolderId = ($rawRoot === null || $rawRoot === '' || $rawRoot === '/') ? 'root' : $rawRoot;
 
       $adapter = new GoogleDriveAdapter($service, $rootFolderId);
 
@@ -47,9 +48,6 @@ class GoogleDriveServiceProvider extends ServiceProvider
         'root' => $config['root'] ?? '',
       ], $config);
 
-      // Wrap the League Filesystem with Laravel's FilesystemAdapter so the
-      // Storage facade receives an adapter it expects (provides methods
-      // like put, get, makeDirectory, temporaryUrl, etc.).
       return new LaravelFilesystemAdapter($filesystemOperator, $adapter, $laravelConfig);
     });
   }
