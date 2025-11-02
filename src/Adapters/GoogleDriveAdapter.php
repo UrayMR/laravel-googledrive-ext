@@ -163,7 +163,15 @@ class GoogleDriveAdapter implements FilesystemAdapter
       foreach ($this->listContents($path, true) as $item) {
         if ($item instanceof FileAttributes) {
           $this->delete($item->path());
+        } elseif ($item instanceof DirectoryAttributes) {
+          $this->deleteDirectory($item->path());
         }
+      }
+
+      // Delete the directory itself
+      $folder = $this->findFile($path);
+      if ($folder && $folder->mimeType === 'application/vnd.google-apps.folder') {
+        $this->service->files->delete($folder->id);
       }
     } catch (Throwable $e) {
       throw UnableToDeleteDirectory::atLocation($path, $e->getMessage(), $e);
