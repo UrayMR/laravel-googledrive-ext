@@ -6,6 +6,7 @@ use Illuminate\Filesystem\FilesystemAdapter as Filesystem;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\StorageAttributes;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Class Gdrive
@@ -46,6 +47,7 @@ class Gdrive
 
   /**
    * Upload a file to Google Drive.
+   * Commonly used for small files (e.g., text files, JSON, CSV).
    *
    * @param string $path
    * @param string $contents
@@ -60,6 +62,7 @@ class Gdrive
 
   /**
    * Upload a stream to Google Drive.
+   * Commonly used for large files (e.g., images, videos, PDFs).
    *
    * @param string $path
    * @param resource $stream
@@ -225,25 +228,6 @@ class Gdrive
   }
 
   /**
-   * Get a public URL for the file.
-   *
-   * @param string $path
-   * @param string|null $disk
-   * @return string|null
-   */
-  public static function url(string $path, ?string $disk = null): ?string
-  {
-    $diskInstance = self::disk($disk);
-
-    if (method_exists($diskInstance, 'url')) {
-      return $diskInstance->url($path);
-    }
-
-    return null;
-  }
-
-
-  /**
    * Create a directory.
    *
    * @param string $directory
@@ -272,5 +256,36 @@ class Gdrive
   public static function deleteDirectory(string $directory, ?string $disk = null): bool
   {
     return self::disk($disk)->deleteDirectory($directory);
+  }
+
+  /**
+   * Get a preview response for a file.
+   *
+   * @param string $path
+   * @param string|null $disk
+   * @return StreamedResponse|null
+   */
+  public static function previewFile(string $path, ?string $disk = null)
+  {
+    $diskInstance = self::disk($disk);
+    if (!$diskInstance->exists($path)) {
+      return abort(404, 'File not found.');
+    }
+
+    $file = self::readStream($path, $disk);
+    if (!$file) {
+      return abort(500, 'Could not read file.');
+    }
+
+    $mimeType = $diskInstance->mimeType($path);
+    $filename = basename($path);
+
+    return new StreamedResponse(function () use ($file) {
+      fpassthru($file);
+      fclose($file);
+    }, 200, [
+      'Content-Type' => $mimeType,
+      'Content-Disposition' => "inline; filename=\"{$filename}\"",
+    ]);
   }
 }
