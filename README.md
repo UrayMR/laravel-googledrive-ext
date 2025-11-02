@@ -177,6 +177,7 @@ Contributions, bug reports and feature requests are welcome. Please open issues 
 ## License
 
 This package is open-source library licensed under the MIT license.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Author
 
