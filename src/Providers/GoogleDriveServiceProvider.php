@@ -44,7 +44,6 @@ class GoogleDriveServiceProvider extends ServiceProvider
       // Build a config array for the Laravel FilesystemAdapter wrapper
       $laravelConfig = array_merge([
         'visibility' => $config['visibility'] ?? 'private',
-        'root' => $config['root'] ?? '',
       ], $config);
 
       return new LaravelFilesystemAdapter($filesystemOperator, $adapter, $laravelConfig);
