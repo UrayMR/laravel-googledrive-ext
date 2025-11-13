@@ -19,6 +19,7 @@ use League\Flysystem\UnableToCopyFile;
 use League\Flysystem\UnableToMoveFile;
 use League\Flysystem\Visibility;
 use Throwable;
+use Uraymr\GoogleDrive\Helpers\PathResolver;
 
 /**
  * Class GoogleDriveAdapter
@@ -30,8 +31,10 @@ use Throwable;
  */
 class GoogleDriveAdapter implements FilesystemAdapter
 {
+  protected PathResolver $pathResolver;
   protected Drive $service;
   protected string $rootFolderId;
+  protected array $cache = [];
 
   /**
    * GoogleDriveAdapter constructor.
@@ -43,6 +46,7 @@ class GoogleDriveAdapter implements FilesystemAdapter
   {
     $this->service = $service;
     $this->rootFolderId = $rootFolderId;
+    $this->pathResolver = new PathResolver($service, $rootFolderId);
   }
 
   /**
@@ -56,9 +60,13 @@ class GoogleDriveAdapter implements FilesystemAdapter
   public function write(string $path, string $contents, Config $config): void
   {
     try {
+      $path = $this->pathResolver->normalizePath($path);
+
+      $parentId = $this->pathResolver->resolveParentId($path);
+
       $fileMetadata = new DriveFile([
         'name' => basename($path),
-        'parents' => [$this->rootFolderId],
+        'parents' => [$parentId],
       ]);
 
       $this->service->files->create($fileMetadata, [
@@ -188,10 +196,12 @@ class GoogleDriveAdapter implements FilesystemAdapter
   public function createDirectory(string $path, Config $config): void
   {
     try {
+      $path = $this->pathResolver->normalizePath($path);
+      $parentId = $this->pathResolver->resolveParentId($path);
       $metadata = new DriveFile([
         'name' => basename($path),
         'mimeType' => 'application/vnd.google-apps.folder',
-        'parents' => [$this->rootFolderId],
+        'parents' => [$parentId],
       ]);
       $this->service->files->create($metadata);
     } catch (Throwable $e) {
@@ -233,13 +243,25 @@ class GoogleDriveAdapter implements FilesystemAdapter
   public function move(string $source, string $destination, Config $config): void
   {
     try {
-      // “TODO: Optimize move() using Drive API update instead of copy+delete.”
-      $this->copy($source, $destination, $config);
-      $this->delete($source);
+      $file = $this->findFile($source);
+      if (!$file) {
+        throw UnableToMoveFile::fromLocationTo($source, $destination);
+      }
+
+      $newParentId = $this->pathResolver->resolveParentId($destination);
+      $previousParents = implode(',', $file->parents ?? []);
+
+      $this->service->files->update($file->id, new DriveFile([
+        'name' => basename($destination),
+      ]), [
+        'addParents' => $newParentId,
+        'removeParents' => $previousParents,
+      ]);
     } catch (Throwable $e) {
       throw UnableToMoveFile::fromLocationTo($source, $destination, $e);
     }
   }
+
 
   /**
    * List directory contents.
@@ -251,24 +273,44 @@ class GoogleDriveAdapter implements FilesystemAdapter
   public function listContents(string $path, bool $deep): iterable
   {
     $parentId = $path === '/' ? $this->rootFolderId : $this->findFile($path)?->id ?? $this->rootFolderId;
+    $pageToken = null;
 
-    $files = $this->service->files->listFiles([
-      'q' => sprintf("'%s' in parents", $parentId),
-      'fields' => 'files(id, name, mimeType, size, modifiedTime)',
-    ]);
+    do {
+      $params = [
+        'q' => sprintf("'%s' in parents and trashed = false", $parentId),
+        'fields' => 'nextPageToken, files(id, name, mimeType, size, modifiedTime)',
+      ];
 
-    foreach ($files->getFiles() as $file) {
-      $isDir = $file->mimeType === 'application/vnd.google-apps.folder';
-      yield $isDir
-        ? new DirectoryAttributes($file->name)
-        : new FileAttributes(
-          $file->name,
-          (int)($file->size ?? 0),
-          Visibility::PUBLIC,
-          strtotime($file->modifiedTime)
-        );
-    }
+      if ($pageToken) {
+        $params['pageToken'] = $pageToken;
+      }
+
+      $files = $this->service->files->listFiles($params);
+
+      foreach ($files->getFiles() as $file) {
+        $isDir = $file->mimeType === 'application/vnd.google-apps.folder';
+        $currentPath = trim($path, '/');
+        $fullPath = $currentPath === '' ? $file->name : $currentPath . '/' . $file->name;
+
+        if ($isDir) {
+          yield new DirectoryAttributes($fullPath);
+          if ($deep) {
+            yield from $this->listContents($fullPath, true);
+          }
+        } else {
+          yield new FileAttributes(
+            $fullPath,
+            (int)($file->size ?? 0),
+            Visibility::PUBLIC,
+            strtotime($file->modifiedTime)
+          );
+        }
+      }
+
+      $pageToken = $files->getNextPageToken();
+    } while ($pageToken !== null);
   }
+
 
   /**
    * Get the MIME type of a file.
@@ -339,8 +381,8 @@ class GoogleDriveAdapter implements FilesystemAdapter
    */
   public function setVisibility(string $path, string $visibility): void
   {
-    // Google Drive visibility should be managed via permissions
-    throw UnableToSetVisibility::atLocation($path, 'Google Drive does not support visibility changes.');
+    // No-op: Google Drive visibility should be managed via permissions
+    // throw UnableToSetVisibility::atLocation($path, 'Google Drive does not support visibility changes.');
   }
 
   /**
@@ -385,12 +427,20 @@ class GoogleDriveAdapter implements FilesystemAdapter
    */
   protected function findFile(string $path): ?DriveFile
   {
+    $path = $this->pathResolver->normalizePath($path);
+
+    if (isset($this->cache[$path])) {
+      return $this->cache[$path];
+    }
+
+    $parentId = $this->pathResolver->resolveParentId($path, false);
+    $fileName = basename($path);
+
     $response = $this->service->files->listFiles([
-      'q' => sprintf("name = '%s' and '%s' in parents", basename($path), $this->rootFolderId),
+      'q' => sprintf("name = '%s' and '%s' in parents and trashed = false", $fileName, $parentId),
       'fields' => 'files(id, name, mimeType, size, modifiedTime)',
     ]);
 
-    $files = $response->getFiles();
-    return $files[0] ?? null;
+    return $this->cache[$path] = $response->getFiles()[0] ?? null;
   }
 }
