@@ -4,6 +4,26 @@ Flysystem v3 adapter for Google Drive, built for Laravel 12.
 
 This package provides a Flysystem v3 adapter that integrates Google Drive with Laravel's `Storage` facade, plus a small `Gdrive` helper utility for common file operations.
 
+---
+
+**Demo & Token Setup Guide**
+
+For a full working demo and step-by-step guide to obtain your **Google Drive credentials** (Service Account or OAuth Token) and **Folder ID**, visit:
+
+👉 [**UrayMR/demo-laravel-googledrive-ext**](https://github.com/UrayMR/demo-laravel-googledrive-ext)
+
+The demo repository includes:
+
+- A ready-to-run **Laravel 12 demo project** using this package.
+- Step-by-step instructions to:
+  - Create a Google Cloud Project and enable the Drive API.
+  - Obtain a **Service Account JSON key** or **OAuth Client + Refresh Token**.
+  - Find your **Google Drive Folder ID** from a Drive folder URL.
+- Practical examples using both `Storage::disk('google')` and the `Gdrive` helper class.
+- Route examples using the `Gdrive` helper class.
+
+---
+
 ## Quick Example
 
 Once installed and configured, you can immediately use Google Drive storage just like any other Laravel disk:
